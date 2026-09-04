@@ -1,0 +1,478 @@
+:root {
+    --bg-color: #f4f4f9;
+    --sidebar-bg: #ffffff;
+    --border-color: #ddd;
+    --primary-color: #4a90e2;
+    --text-color: #333;
+    --font-ui: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-ui);
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    height: 100vh;
+    overflow: hidden;
+}
+
+.layout-container {
+    display: flex;
+    height: 100vh;
+}
+
+/* Sidebar Settings */
+.settings-panel {
+    width: 380px;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    padding: 20px;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+
+.settings-panel h1 {
+    font-size: 1.5rem;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+}
+
+.setting-group {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.setting-group h2 {
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    color: #555;
+}
+
+label {
+    display: block;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="file"],
+select,
+textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+textarea {
+    resize: vertical;
+}
+
+.directions-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+
+.directions-grid label {
+    margin-top: 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-weight: normal;
+}
+
+button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #357abd;
+}
+
+.btn-secondary {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background-color: #ccc;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+    margin-top: 15px;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
+
+/* Live Preview Area */
+.preview-panel {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background: #e9ecef;
+}
+
+.preview-toolbar {
+    background: white;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border-color);
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+}
+
+.preview-canvas {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 30px;
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+/* ── Slider row with live-value badge ────────────────────────────────────── */
+.slider-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+.slider-row input[type="range"] {
+    flex: 1;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    accent-color: var(--primary-color);
+    height: 4px;
+}
+.slider-value-badge {
+    min-width: 40px;
+    text-align: center;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    background: #eef4ff;
+    border: 1px solid #c8deff;
+    border-radius: 6px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+}
+
+/* ── Font drag-and-drop zone ─────────────────────────────────────────────── */
+.font-dropzone {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 7px;
+    padding: 9px 12px;
+    background: #f5f8ff;
+    border: 2px dashed #93b8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    min-height: 42px;
+    user-select: none;
+}
+.font-dropzone:hover {
+    background: #e6efff;
+    border-color: #4a90e2;
+    box-shadow: 0 0 0 3px rgba(74,144,226,0.12);
+}
+/* While a file is being dragged over the zone */
+.font-dropzone.drag-over {
+    background: #ddeaff;
+    border-color: #2260c4;
+    box-shadow: 0 0 0 4px rgba(34,96,196,0.18);
+}
+/* After a font has been loaded */
+.font-dropzone.has-font {
+    background: #f0fdf4;
+    border-color: #4ade80;
+    border-style: solid;
+}
+.font-dropzone.has-font .font-dropzone-icon { color: #16a34a; }
+
+.font-dropzone-icon {
+    font-size: 0.78rem;
+    color: #4a90e2;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+}
+.font-dropzone-text {
+    flex: 1;
+    font-size: 0.78rem;
+    color: #555;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.font-dropzone-text u { color: #4a90e2; text-underline-offset: 2px; }
+
+/* × clear button inside the dropzone */
+.font-dropzone-clear {
+    width: auto !important;
+    padding: 3px 7px !important;
+    margin-top: 0 !important;
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+    border-radius: 5px;
+    font-size: 0.78rem;
+    font-weight: bold;
+    cursor: pointer;
+    flex-shrink: 0;
+    line-height: 1.4;
+    transition: background 0.15s;
+    display: none; /* hidden until a font is loaded */
+}
+.font-dropzone.has-font .font-dropzone-clear { display: inline-block; }
+.font-dropzone-clear:hover { background: #fecaca; }
+
+
+/* Print Page Mimicry */
+.page {
+    background: white;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* CSS variables will set dynamic dimensions based on selected Trim */
+    width: var(--page-width, 8.5in);
+    height: var(--page-height, 11in);
+    /* padding is set dynamically by JS based on the user's page margin selection */
+}
+
+/* When a background image is set, the page centres its content panel */
+.page.has-bg {
+    background: transparent; /* let the bg image show fully */
+    align-items: center;
+    justify-content: center;
+}
+
+/* ── Content panel: white rounded rectangle that sits over the bg image ────── */
+.content-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    z-index: 1;
+    background: transparent;
+    border-radius: 0;
+}
+
+/* When a background image is active — fill the page leaving 1" breathing room on each edge */
+.content-panel--bg {
+    position: absolute;
+    top: 1in;
+    left: 1in;
+    right: 1in;
+    bottom: 1in;
+    width: auto;
+    height: auto;
+    margin: 0;
+    /* Visual styling */
+    background: rgba(255, 255, 255, 0.94); /* overridden by JS white-panel-opacity */
+    border-radius: 12px;
+    box-shadow: 0 6px 32px rgba(0, 0, 0, 0.18);
+    overflow: hidden;
+}
+
+/* Page inner contents */
+.page-header {
+    margin-bottom: 0.3in;
+}
+
+.page-title {
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.title-center { text-align: center; }
+.title-left { text-align: left; }
+.title-right { text-align: right; }
+
+.page-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Always center the grid at the top */
+    flex-grow: 1;
+}
+
+.page-body.layout-side {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.2in;
+}
+
+.puzzle-container {
+    position: relative; /* important for SVG absolute positioning */
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.3in;
+}
+
+.page-body.layout-side .puzzle-container {
+    flex-grow: 1;
+    margin-bottom: 0;
+}
+
+.word-grid {
+    display: flex;
+    flex-wrap: wrap;
+    border: 2px solid transparent;
+    box-sizing: content-box; /* prevent border from stealing cell width */
+}
+
+.word-grid.show-border {
+    border-color: #000;
+}
+
+.grid-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-transform: uppercase;
+    aspect-ratio: 1 / 1;
+    /* Font size scaled dynamically in JS based on grid size */
+}
+
+.grid-cell.highlight {
+    background-color: rgba(200, 200, 200, 0.4);
+    border-radius: 50%;
+    font-weight: bold;
+}
+
+.clues-container {
+    width: 100%;
+    display: flex;
+    justify-content: center; /* Horizontally centered */
+}
+
+.page-body.layout-side .clues-container {
+    width: 2in; /* fixed side width */
+}
+
+.clues-list {
+    list-style-type: none;
+    display: flex;
+    flex-wrap: wrap;
+    text-transform: uppercase;
+    font-size: 14px;
+    width: 100%;
+}
+
+.page-body.layout-bottom .clues-list {
+    width: auto; /* Allow shrinking to center properly */
+}
+
+.clues-list li {
+    text-align: center; /* Center clue text within its grid cell */
+}
+
+.clues-list li.found {
+    text-decoration: line-through;
+    color: #666;
+}
+
+/* Background image overlay */
+.bg-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    /* background-image set via JS */
+}
+
+.page-content {
+    position: relative;
+    z-index: 1;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Solution specific styling */
+.solution-page-header {
+    text-align: center;
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+/* Layout for solutions (1x2, 2x2, 2x3 etc) */
+.solutions-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.3in;
+    width: 100%;
+    height: 100%;
+}
+
+/* Old bare wrapper kept for compatibility */
+.solution-mini-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Mini solution card — border is on the grid itself, not the wrapper */
+.solution-mini-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 4px 6px 8px;
+    background: #fff;
+}
+
+.solution-mini-title {
+    font-size: 12px;
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
