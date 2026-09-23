@@ -322,6 +322,7 @@ button {
 .page-title {
     margin: 0;
     text-transform: uppercase;
+    font-weight: 700; /* must match PDF title outlines (700 / bold face) */
 }
 
 .title-center { text-align: center; }
@@ -371,6 +372,7 @@ button {
     justify-content: center;
     text-transform: uppercase;
     aspect-ratio: 1 / 1;
+    font-weight: 400; /* must match PDF grid outlines (regular 400) */
     /* Font size scaled dynamically in JS based on grid size */
 }
 
@@ -396,6 +398,7 @@ button {
     flex-wrap: wrap;
     text-transform: uppercase;
     font-size: 14px;
+    font-weight: 400; /* must match PDF clue outlines (regular 400) */
     width: 100%;
 }
 
