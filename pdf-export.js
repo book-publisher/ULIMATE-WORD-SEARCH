@@ -168,6 +168,39 @@ function parseDataUrl(dataUrl) {
     return { mime: match[1], base64: match[2] };
 }
 
+// ── DOWNLOAD-PHASE display lookup (spaces kept) ──────────────────────────────
+// Mirrors generator.js logic locally so export works even if placedWords were
+// created by an older session without `display`.
+function _pdfGridForm(w) {
+    return String(w == null ? '' : w)
+        .replace(/ß/g, 'SS')
+        .replace(/ä/gi, 'Ä').replace(/ö/gi, 'Ö').replace(/ü/gi, 'Ü')
+        .toUpperCase().replace(/[^A-ZÄÖÜ]/g, '');
+}
+function _pdfDisplayForm(w) {
+    let d = String(w == null ? '' : w)
+        .replace(/ß/g, 'SS')
+        .replace(/ä/gi, 'Ä').replace(/ö/gi, 'Ö').replace(/ü/gi, 'Ü')
+        .toUpperCase().replace(/\s+/g, ' ').trim();
+    d = d.replace(/[^A-ZÄÖÜ \-']/g, '').replace(/\s+/g, ' ').trim();
+    return d || _pdfGridForm(w);
+}
+function getClueDisplayList(placedWords, settings) {
+    // Build grid → display map from the ORIGINAL user list (with spaces)
+    const map = {};
+    (settings.words || []).forEach(raw => {
+        const g = _pdfGridForm(raw);
+        if (g && !map[g]) map[g] = _pdfDisplayForm(raw);
+    });
+    return (placedWords || []).map(p => {
+        if (p.display && p.display.trim()) return p.display;
+        const g = p.word || '';
+        if (map[g]) return map[g];                    // "BALLJOINT" → "BALL JOINT"
+        // Fallback: insert nothing — keep grid form rather than blank
+        return g;
+    });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  CORE: Draw text as vector outlines — the Book Bolt / Canva method
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -500,11 +533,15 @@ async function generatePDF(puzzlesData, trimSizeStr, solutionsPerPage, pageMargi
         }
 
         // ── Clue words — VECTOR OUTLINES ─────────────────────────────────────
-        // Use DISPLAY form (spaces kept: "CAR WHEEL"), not grid form ("CARWHEEL")
+        // DOWNLOAD PHASE ONLY: always show the ORIGINAL list appearance
+        // ("BALL JOINT", not "BALLJOINT"). Preview already does this via
+        // p.display — but old sessions / cached puzzles may have placedWords
+        // with only {word: "BALLJOINT"}. So reconstruct display from the
+        // raw word list (s.words) by matching grid forms. This touches ONLY
+        // the export; grid placement is unchanged.
         const clueStartY   = gridY + gridH + 0.35;
         const clueFontSize = 11;
-        const sortedWords  = result.placedWords
-            .map(p => (p.display || p.word || ''))
+        const sortedWords  = getClueDisplayList(result.placedWords, s)
             .sort((a, b) => a.localeCompare(b));
         const colWidth     = usablePanelW / s.clueCols;
         const lineHeight   = clueFontSize / 72 + 0.12;
