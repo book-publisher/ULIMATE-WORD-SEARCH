@@ -132,9 +132,10 @@ function extractTTFFamilyName(arrayBuffer) {
 
 function loadCustomFont(slot, file) {
     if (!file) return;
-    if (!file.name.toLowerCase().endsWith('.ttf') &&
-        !file.name.toLowerCase().endsWith('.otf')) {
-        alert('Please use a .ttf font file.');
+    const lower = file.name.toLowerCase();
+    const isSupported = lower.endsWith('.ttf') || lower.endsWith('.otf') || lower.endsWith('.woff');
+    if (!isSupported) {
+        alert('Please use a .ttf, .otf or .woff font file (opentype.js cannot parse .woff2).');
         return;
     }
 
@@ -160,9 +161,23 @@ function loadCustomFont(slot, file) {
         // Use the real family name if we could extract it, otherwise a safe fallback
         const cssFamName = realFamilyName || `CustomFont_${slot}_${safeName}`;
 
+        // Detect container so @font-face uses the right format + MIME.
+        // opentype.js parses TTF/OTF/WOFF (not WOFF2) — all three work for PDF outlines.
+        let fontFormat = 'truetype';
+        let fontMime   = 'font/truetype';
+        if (lower.endsWith('.otf'))      { fontFormat = 'opentype'; fontMime = 'font/opentype'; }
+        else if (lower.endsWith('.woff')) { fontFormat = 'woff';    fontMime = 'font/woff'; }
+
         customFontData[slot] = { name: cssFamName, base64, vfsName };
 
-        // Inject @font-face so the DOM preview updates immediately
+        // Inject @font-face so the DOM preview updates immediately.
+        // CRITICAL for WYSIWYG: register the SAME file under BOTH 400 and 700.
+        // Browser <h1> titles render at font-weight:700. With only a 400 face
+        // declared, the browser synthesises "faux bold" (thicker, distorted
+        // shapes) while the PDF draws the true regular outlines — the exact
+        // title mismatch reported (Bebas preview vs download). Declaring both
+        // weights pointing at the same data forces the browser to use the true
+        // glyphs for bold too, so preview === PDF vector outlines.
         const styleId = `custom-font-face-${slot}`;
         let styleEl = document.getElementById(styleId);
         if (!styleEl) {
@@ -173,9 +188,17 @@ function loadCustomFont(slot, file) {
         styleEl.textContent = `
             @font-face {
                 font-family: "${cssFamName}";
-                src: url("data:font/truetype;base64,${base64}") format("truetype");
-                font-weight: normal;
+                src: url("data:${fontMime};base64,${base64}") format("${fontFormat}");
+                font-weight: 400;
                 font-style: normal;
+                font-display: swap;
+            }
+            @font-face {
+                font-family: "${cssFamName}";
+                src: url("data:${fontMime};base64,${base64}") format("${fontFormat}");
+                font-weight: 700;
+                font-style: normal;
+                font-display: swap;
             }
         `;
 
@@ -186,7 +209,24 @@ function loadCustomFont(slot, file) {
         const displayName = realFamilyName ? `${file.name} → "${realFamilyName}"` : file.name;
         if (label) label.innerHTML = `✓ <strong>${displayName}</strong>`;
 
-        window.dispatchEvent(new Event('settingsChanged'));
+        // Wait until the browser has actually rasterised the new face before
+        // re-rendering the preview — otherwise the first paint still shows the
+        // fallback font and looks like a "preview vs PDF" mismatch.
+        const refresh = () => window.dispatchEvent(new Event('settingsChanged'));
+        try {
+            if (document.fonts && document.fonts.load) {
+                Promise.all([
+                    document.fonts.load(`400 16px "${cssFamName}"`),
+                    document.fonts.load(`700 16px "${cssFamName}"`)
+                ]).then(refresh).catch(refresh);
+                // Safety: refresh once more after a tick in case load() resolves early
+                setTimeout(refresh, 300);
+            } else {
+                refresh();
+            }
+        } catch (_) {
+            refresh();
+        }
     };
     // Read as ArrayBuffer so we can both parse the name table AND encode to base64
     reader.readAsArrayBuffer(file);
@@ -203,7 +243,7 @@ function clearCustomFont(slot) {
     const style = document.getElementById(`custom-font-face-${slot}`);
 
     if (zone)  zone.classList.remove('has-font');
-    if (label) label.innerHTML = 'Drop a .ttf here or <u>click to browse</u>';
+    if (label) label.innerHTML = 'Drop a .ttf/.otf here or <u>click to browse</u>';
     if (style) style.textContent = '';
 
     window.dispatchEvent(new Event('settingsChanged'));
@@ -263,12 +303,15 @@ function initDropzone(slot) {
 
         const files = e.dataTransfer.files;
         if (files && files.length > 0) {
-            // Accept the first .ttf file dropped
-            const ttf = Array.from(files).find(f => f.name.toLowerCase().endsWith('.ttf'));
-            if (ttf) {
-                loadCustomFont(slot, ttf);
+            // Accept .ttf / .otf / .woff (all parseable by opentype.js for outlines)
+            const fontFile = Array.from(files).find(f => {
+                const n = f.name.toLowerCase();
+                return n.endsWith('.ttf') || n.endsWith('.otf') || n.endsWith('.woff');
+            });
+            if (fontFile) {
+                loadCustomFont(slot, fontFile);
             } else {
-                alert('Only .ttf font files are supported. Please drop a .ttf file.');
+                alert('Only .ttf, .otf or .woff font files are supported. Please drop a font file.');
             }
         }
     });
