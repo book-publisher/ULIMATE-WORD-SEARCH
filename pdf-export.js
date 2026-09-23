@@ -10,11 +10,12 @@
  *
  * How it works:
  *   1. opentype.js parses the TTF binary (from CDN or custom upload).
- *   2. otFont.getPath(text, x, y, size) returns raw glyph bezier contours
+ *  2. otFont.getPath(text, x, y, size) returns raw glyph bezier contours
  *      (M/L/C/Q/Z commands in point coordinates).
- *   3. We write those commands to the PDF stream using jsPDF's internal API,
- *      using the even-odd fill rule (f*) so glyph holes (O, B, R, etc.) render
- *      correctly without any fill.
+ *  3. We write those commands to the PDF stream using jsPDF's internal API,
+ *      using the NONZERO winding fill rule (f) so glyph holes (O, B, R, etc.)
+ *      render correctly AND overlapping contours (Bebas/Anton-style display
+ *      fonts) stay solid with no white gaps.
  *
  * Fallback: Arial / helvetica → jsPDF native pdf.text() (always-present built-in).
  *
@@ -123,15 +124,23 @@ async function fetchAndParseFont(fontName, weight) {
 
 function parseCustomFontOpentype(customPayload) {
     if (!customPayload || !customPayload.base64) return null;
-    const cacheKey = '__custom__' + customPayload.vfsName;
+    // Cache by content (vfsName alone collides when the same filename is
+    // uploaded to several slots, or when a file is replaced). base64 length
+    // + a short prefix hash is enough to disambiguate in-session.
+    const b64 = customPayload.base64;
+    let prefix = '';
+    for (let i = 0; i < Math.min(32, b64.length); i++) prefix += b64[i];
+    const cacheKey = '__custom__' + (customPayload.vfsName || 'font')
+        + '__' + b64.length + '__' + prefix.length + '_' + prefix.slice(0, 16);
     if (_otFontCache[cacheKey]) return _otFontCache[cacheKey];
     try {
-        const binary = atob(customPayload.base64);
+        const binary = atob(b64);
         const buffer = new ArrayBuffer(binary.length);
         const uint8  = new Uint8Array(buffer);
         for (let i = 0; i < binary.length; i++) uint8[i] = binary.charCodeAt(i);
         const otFont = opentype.parse(buffer);
         _otFontCache[cacheKey] = { otFont };
+        console.info(`[pdf-export] Custom font parsed: "${customPayload.name || customPayload.vfsName}" (${(buffer.byteLength/1024).toFixed(0)} KB, ${otFont.glyphs.length} glyphs)`);
         return _otFontCache[cacheKey];
     } catch (err) {
         console.warn(`[pdf-export] Could not parse custom font: ${err.message}`);
@@ -191,11 +200,18 @@ function drawOutlineText(pdf, otFont, text, xIn, yIn, fontSizePt, fillRGB, align
     const IN2PT = 72; // 1 inch = 72 points
     const scale = fontSizePt / otFont.unitsPerEm;
 
-    // Measure string width for alignment
-    const glyphs = otFont.stringToGlyphs(text);
-    let totalAdv = 0;
-    glyphs.forEach(g => { totalAdv += (g.advanceWidth || 0); });
-    const totalWidthIn = (totalAdv * scale) / IN2PT;
+    // Measure string width for alignment — use kerning-aware advance width
+    // so centered/right text lands exactly where the browser preview puts it.
+    let totalWidthIn;
+    try {
+        const advPt = otFont.getAdvanceWidth(text, fontSizePt); // points, kerning included
+        totalWidthIn = advPt / IN2PT;
+    } catch (_) {
+        const glyphs = otFont.stringToGlyphs(text);
+        let totalAdv = 0;
+        glyphs.forEach(g => { totalAdv += (g.advanceWidth || 0); });
+        totalWidthIn = (totalAdv * scale) / IN2PT;
+    }
 
     let startXIn = xIn;
     if (align === 'center') startXIn = xIn - totalWidthIn / 2;
@@ -277,8 +293,17 @@ function drawOutlineText(pdf, otFont, text, xIn, yIn, fontSizePt, fillRGB, align
 
     if (parts.length === 0) return;
 
-    // f* = even-odd fill rule — correctly renders glyph counters (holes in O, B, R, D, etc.)
-    parts.push('f*');
+    // NONZERO winding fill (f) — NOT even-odd (f*).
+    // Why: display fonts like Bebas Neue / Anton / Oswald build letters from
+    // OVERLAPPING contours (stem + bowl overlap). Even-odd un-fills every
+    // overlap region, which renders as thin white gaps slicing through D, B,
+    // O, Q, K, L, etc. — exactly the "broken letters" bug. Nonzero keeps
+    // same-direction overlaps filled while still cutting real counters
+    // (holes), because genuine holes are wound opposite to their outer
+    // contour in the font file. Y-flip preserves this relative winding
+    // (all contours flip together), so `f` is correct for both TTF (Q) and
+    // OTF/CFF (C) outlines. This matches Book Bolt / Canva outline export.
+    parts.push('f');
 
     // Wrap in q/Q to isolate graphics state; set fill colour before path
     internal.write(`q ${r} ${g} ${b} rg ${parts.join(' ')} Q`);
