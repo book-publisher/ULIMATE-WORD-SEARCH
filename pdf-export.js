@@ -500,9 +500,12 @@ async function generatePDF(puzzlesData, trimSizeStr, solutionsPerPage, pageMargi
         }
 
         // ── Clue words — VECTOR OUTLINES ─────────────────────────────────────
+        // Use DISPLAY form (spaces kept: "CAR WHEEL"), not grid form ("CARWHEEL")
         const clueStartY   = gridY + gridH + 0.35;
         const clueFontSize = 11;
-        const sortedWords  = result.placedWords.map(p => p.word).sort();
+        const sortedWords  = result.placedWords
+            .map(p => (p.display || p.word || ''))
+            .sort((a, b) => a.localeCompare(b));
         const colWidth     = usablePanelW / s.clueCols;
         const lineHeight   = clueFontSize / 72 + 0.12;
 
