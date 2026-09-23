@@ -342,6 +342,54 @@ function drawOutlineText(pdf, otFont, text, xIn, yIn, fontSizePt, fillRGB, align
     internal.write(`q ${r} ${g} ${b} rg ${parts.join(' ')} Q`);
 }
 
+/**
+ * drawClueOutlineWithSpaces — DOWNLOAD PHASE ONLY.
+ * After download there is no text anymore, only vectors. A normal space glyph
+ * draws NOTHING (no contours) and some display fonts ship a zero-width space,
+ * so "BALL JOINT" collapses to "BALLJOINT" in the outline PDF even though the
+ * string is correct. Fix: split on spaces and draw each chunk as its own
+ * vector group with an explicit, guaranteed gap. Whole clue stays centered.
+ */
+function drawClueOutlineWithSpaces(pdf, otFont, text, cxIn, cyIn, fontSizePt, fillRGB) {
+    if (!text) return;
+    // Fallback path (helvetica): real text engine, spaces work natively.
+    if (!otFont) {
+        drawOutlineText(pdf, null, text, cxIn, cyIn, fontSizePt, fillRGB, 'center');
+        return;
+    }
+    const chunks = String(text).split(' ').filter(ch => ch.length > 0);
+    if (chunks.length <= 1) {
+        drawOutlineText(pdf, otFont, text, cxIn, cyIn, fontSizePt, fillRGB, 'center');
+        return;
+    }
+    const IN2PT = 72;
+    function advPt(str) {
+        try {
+            const w = otFont.getAdvanceWidth(str, fontSizePt);
+            if (w && isFinite(w) && w > 0) return w;
+        } catch (_) {}
+        // Rough fallback: ~0.6em per character
+        return str.length * fontSizePt * 0.6;
+    }
+    let spacePt = 0;
+    try {
+        spacePt = otFont.getAdvanceWidth(' ', fontSizePt);
+    } catch (_) { spacePt = 0; }
+    // Guarantee a VISIBLE gap even if the font's space is missing/zero-width.
+    // 0.35em is clearly visible at 11pt yet keeps clues inside their column.
+    const minSpacePt = fontSizePt * 0.35;
+    if (!spacePt || !isFinite(spacePt) || spacePt < minSpacePt) spacePt = minSpacePt;
+
+    const tokenPts = chunks.map(advPt);
+    const totalPt = tokenPts.reduce((a, b) => a + b, 0) + spacePt * (chunks.length - 1);
+    let cursorIn = cxIn - (totalPt / IN2PT) / 2;
+    chunks.forEach((tok, i) => {
+        drawOutlineText(pdf, otFont, tok, cursorIn, cyIn, fontSizePt, fillRGB, 'left');
+        cursorIn += tokenPts[i] / IN2PT;
+        if (i < chunks.length - 1) cursorIn += spacePt / IN2PT;
+    });
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 //  Main export entry point
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -552,7 +600,8 @@ async function generatePDF(puzzlesData, trimSizeStr, solutionsPerPage, pageMargi
             const cx  = panelX + innerPad + col * colWidth + colWidth / 2;
             const cy  = clueStartY + row * lineHeight;
             if (cy < panelY + panelH - innerPad) {
-                drawOutlineText(pdf, cluesOTFont, word, cx, cy, clueFontSize, [0, 0, 0], 'center');
+                // Separated vectors: guarantees the space survives as vectors
+                drawClueOutlineWithSpaces(pdf, cluesOTFont, word, cx, cy, clueFontSize, [0, 0, 0]);
             }
         });
     }
