@@ -187,6 +187,10 @@ function renderPuzzleToDOM(puzzleData, puzzleNum, isSolution = false, isSmallMod
         header.className = 'page-header';
         const title = document.createElement('h1');
         title.style.fontFamily = `"${s.fontTitle}", Arial, sans-serif`;
+        // Match PDF: titles are drawn from the Bold (700) outlines for Google
+        // fonts, and from the same-file 700 @font-face for custom uploads.
+        // Explicit 700 prevents any weight ambiguity between preview and PDF.
+        title.style.fontWeight = '700';
 
         if (isSmallMode) {
             title.className = 'solution-mini-title';
@@ -220,6 +224,7 @@ function renderPuzzleToDOM(puzzleData, puzzleNum, isSolution = false, isSmallMod
     grid.className = `word-grid ${(s.showBorder || isSmallMode) ? 'show-border' : ''}`;
     grid.style.position = 'relative';
     grid.style.fontFamily = `"${s.fontGrid}", Arial, monospace`;
+    grid.style.fontWeight = '400';
     
     let baseFontSize = isSmallMode ? 8 : 18;
     if (s.cols > 15) baseFontSize -= 4;
@@ -289,6 +294,7 @@ function renderPuzzleToDOM(puzzleData, puzzleNum, isSolution = false, isSmallMod
         const cluesList = document.createElement('ul');
         cluesList.className = 'clues-list';
         cluesList.style.fontFamily = `"${s.fontClues}", Arial, sans-serif`;
+        cluesList.style.fontWeight = '400';
         
         if (s.cluePlacement === 'bottom') {
             cluesContainer.style.marginTop = `${s.clueSpacing}px`;
