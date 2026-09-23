@@ -16,11 +16,37 @@ class WordSearchGenerator {
             .replace(/[^A-ZÄÖÜ]/g, '');   // strip everything that isn't a letter we support
     }
 
+    /**
+     * Display form for the clues list.
+     * - Same uppercasing / ß→SS / umlaut handling as the grid
+     * - BUT preserves single spaces (and - ') so "car wheel" shows as
+     *   "CAR WHEEL" in clues while the grid uses "CARWHEEL".
+     */
+    static displayWord(w) {
+        if (w === undefined || w === null) return '';
+        let d = String(w)
+            .replace(/ß/g, 'SS')
+            .replace(/ä/gi, 'Ä')
+            .replace(/ö/gi, 'Ö')
+            .replace(/ü/gi, 'Ü')
+            .toUpperCase()
+            .replace(/\s+/g, ' ')          // collapse tabs/multiple spaces
+            .trim();
+        // Keep letters + ÄÖÜ + space + hyphen + apostrophe; drop other punctuation
+        d = d.replace(/[^A-ZÄÖÜ \-']/g, '').replace(/\s+/g, ' ').trim();
+        return d;
+    }
+
     constructor(config) {
         this.rows = config.rows || 15;
         this.cols = config.cols || 15;
-        // Normalize each word; remember the display form (normalized = grid form = clue form)
-        this.words = (config.words || []).map(w => WordSearchGenerator.normalizeWord(w));
+        // Keep BOTH forms: grid (no spaces, letters only) + display (spaces kept for clues)
+        this.words = (config.words || [])
+            .map(raw => ({
+                grid: WordSearchGenerator.normalizeWord(raw),
+                display: WordSearchGenerator.displayWord(raw) || WordSearchGenerator.normalizeWord(raw)
+            }))
+            .filter(o => o.grid.length > 0);
         this.directions = config.directions || ['N', 'S', 'E', 'W', 'NE', 'NW', 'SE', 'SW'];
         this.allowBackwards = config.allowBackwards !== false;
         
@@ -48,11 +74,12 @@ class WordSearchGenerator {
         }
 
         // Sort words by length descending (longest words are hardest to place)
-        const sortedWords = [...this.words].sort((a, b) => b.length - a.length);
+        // NOTE: sort by GRID length (spaces don't occupy cells)
+        const sortedWords = [...this.words].sort((a, b) => b.grid.length - a.grid.length);
 
-        for (const word of sortedWords) {
-            if (!this.placeWord(word)) {
-                this.unplacedWords.push(word);
+        for (const wordObj of sortedWords) {
+            if (!this.placeWord(wordObj)) {
+                this.unplacedWords.push(wordObj.display || wordObj.grid);
             }
         }
 
@@ -73,12 +100,14 @@ class WordSearchGenerator {
         };
     }
 
-    placeWord(word) {
-        let actualWord = word;
+    placeWord(wordObj) {
+        // wordObj: { grid, display } — grid goes in the puzzle, display goes in clues
+        const gridWord = wordObj.grid;
+        let actualWord = gridWord;
         
         // Randomly decide whether to try it backwards if allowed
         if (this.allowBackwards && Math.random() > 0.5) {
-            actualWord = word.split('').reverse().join('');
+            actualWord = gridWord.split('').reverse().join('');
         }
 
         const allowedDirs = this.directions;
@@ -103,21 +132,21 @@ class WordSearchGenerator {
                 const [dr, dc] = WordSearchGenerator.DIRS[dirName];
                 
                 if (this.canPlace(actualWord, r, c, dr, dc)) {
-                    this.doPlace(actualWord, r, c, dr, dc, word); // Pass original word to placedWords
+                    this.doPlace(actualWord, r, c, dr, dc, wordObj); // Pass display form to placedWords
                     return true;
                 }
             }
         }
 
         // If we tried it forwards and failed, and allowBackwards is true, try backwards as fallback
-        if (this.allowBackwards && actualWord === word) {
-            const backWord = word.split('').reverse().join('');
+        if (this.allowBackwards && actualWord === gridWord) {
+            const backWord = gridWord.split('').reverse().join('');
             for (const [r, c] of positions) {
                 const dirs = this.shuffle([...allowedDirs]);
                 for (const dirName of dirs) {
                     const [dr, dc] = WordSearchGenerator.DIRS[dirName];
                     if (this.canPlace(backWord, r, c, dr, dc)) {
-                        this.doPlace(backWord, r, c, dr, dc, word);
+                        this.doPlace(backWord, r, c, dr, dc, wordObj);
                         return true;
                     }
                 }
@@ -146,7 +175,7 @@ class WordSearchGenerator {
         return true;
     }
 
-    doPlace(word, r, c, dr, dc, originalWord) {
+    doPlace(word, r, c, dr, dc, wordObj) {
         const path = [];
         for (let i = 0; i < word.length; i++) {
             const nr = r + i * dr;
@@ -155,7 +184,8 @@ class WordSearchGenerator {
             path.push([nr, nc]);
         }
         this.placedWords.push({
-            word: originalWord,
+            word: wordObj.grid,       // grid form: no spaces (e.g. CARWHEEL)
+            display: wordObj.display, // clue form: spaces kept (e.g. CAR WHEEL)
             path: path
         });
     }
