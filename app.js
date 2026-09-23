@@ -300,7 +300,9 @@ function renderPuzzleToDOM(puzzleData, puzzleNum, isSolution = false, isSmallMod
             cluesContainer.style.marginTop = `${s.clueSpacing}px`;
         }
 
-        const sortedPlaced = puzzleData.result.placedWords.map(p => p.word).sort();
+        const sortedPlaced = puzzleData.result.placedWords
+            .map(p => (p.display || p.word || ''))
+            .sort((a, b) => a.localeCompare(b));
         const colPercent   = 100 / s.clueCols;
         
         sortedPlaced.forEach(word => {
